@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tech Tools Jeopardy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#081441; --yellow:#FFCC33; --blue:#1853B5; --tile:#15449B; --card:#123E91;
+  --green:#209969; --red:#CC3C46; --muted:#BECDE6; --soft:#E8F1FF; --white:#FFFFFF;
+  --c1:#123E91; --c2:#1853B5; --c3:#284B9B; --c4:#185C82;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);overflow:hidden}
+body{font-family:"Aptos","Aptos Display","Inter","Segoe UI",system-ui,sans-serif;color:var(--white);-webkit-font-smoothing:antialiased;user-select:none}
+#viewport{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+#stage{position:relative;width:960px;height:540px;background:var(--bg);transform-origin:center center;flex:none;overflow:hidden}
+
+.screen{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .35s ease}
+.screen.on{opacity:1;pointer-events:auto}
+.b{position:absolute;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.15}
+.bold{font-weight:700}
+.rr{border:1.25px solid var(--white)}
+.btn{cursor:pointer;transition:transform .12s ease,filter .12s ease,box-shadow .12s ease}
+.btn:hover{filter:brightness(1.12);transform:translateY(-1px);box-shadow:0 6px 18px rgba(0,0,0,.35)}
+.btn:active{transform:translateY(1px) scale(.98)}
+.footer{left:25px;top:513px;width:907px;height:14px;font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.2px}
+
+/* title squares */
+.sq{position:absolute;border-radius:5px}
+.sq.float{animation:bob 4s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+
+/* how to play */
+.num{background:var(--yellow);color:var(--bg);font-size:17px;font-weight:700;border-radius:6px}
+.rule{justify-content:flex-start;text-align:left;font-size:18px}
+
+/* board */
+.cat{color:var(--yellow);font-size:17px;font-weight:700;border-radius:11px;padding:0 10px;line-height:1.05}
+.tile{background:var(--tile);color:var(--yellow);font-size:27px;font-weight:700;border-radius:11px}
+.tile.used{background:#0E2C6A;border-color:rgba(255,255,255,.25);color:rgba(255,204,51,.18);cursor:default;box-shadow:none;transform:none;filter:none}
+.tile.used::after{content:"";}
+#scoreRow{left:35px;top:450px;width:892px;height:26px;gap:8px}
+.chip{height:26px;padding:0 12px;border-radius:13px;background:rgba(24,83,181,.55);border:1px solid rgba(255,255,255,.55);font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.chip .pts{color:var(--yellow)}
+.chip.lead{background:var(--green)}
+
+/* question */
+.choices{flex-direction:column;align-items:flex-start;justify-content:center;font-size:23px;color:var(--soft);line-height:1.22;text-align:left}
+.choice{cursor:pointer;padding:0 8px;margin-left:-8px;border-radius:6px;transition:background .15s,color .15s}
+.choice:hover{background:rgba(255,255,255,.08)}
+.choice.pick{background:var(--yellow);color:var(--bg);font-weight:700}
+#timer{font-size:16px;color:var(--muted);cursor:pointer}
+#timer.warn{color:var(--yellow);font-weight:700}
+#timer.up{color:#FF6B74;font-weight:700}
+#timerBar{position:absolute;left:330px;top:433px;width:300px;height:4px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden}
+#timerBar i{display:block;height:100%;width:100%;background:var(--yellow);transform-origin:left;transition:transform 1s linear}
+
+/* answer */
+.award{gap:8px;flex-wrap:wrap}
+.awardBtn{height:30px;padding:0 14px;border-radius:15px;font-size:13px;font-weight:700;background:rgba(24,83,181,.6);border:1.25px solid rgba(255,255,255,.7);color:#fff;display:flex;align-items:center;gap:6px;cursor:pointer;transition:all .15s}
+.awardBtn:hover{background:var(--blue)}
+.awardBtn.on{background:var(--green);border-color:#fff;box-shadow:0 0 0 3px rgba(32,153,105,.35)}
+.awardLbl{font-size:12px;color:var(--muted);font-weight:700;letter-spacing:.5px;margin-right:2px}
+
+/* final */
+.wagerRow{display:grid;grid-template-columns:200px 120px 60px 60px 110px;align-items:center;gap:8px;font-size:15px;height:34px}
+.wagerRow .nm{font-weight:700;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wagerRow input{height:28px;border-radius:6px;border:1.25px solid #fff;background:#0E2C6A;color:var(--yellow);font:inherit;font-weight:700;text-align:center;width:100%}
+.mini{height:28px;border-radius:6px;border:1.25px solid #fff;font-weight:700;font-size:14px;cursor:pointer;color:#fff;background:rgba(255,255,255,.08)}
+.mini.ok.on{background:var(--green)}
+.mini.no.on{background:var(--red)}
+.wagerRow .res{color:var(--yellow);font-weight:700;text-align:right}
+
+/* confetti */
+.conf{position:absolute;top:-12px;width:8px;height:12px;border-radius:2px;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(580px) rotate(720deg)}}
+
+/* modal (inside stage) */
+.modal{position:absolute;inset:0;background:rgba(4,10,35,.78);display:none;align-items:center;justify-content:center;z-index:20}
+.modal.on{display:flex}
+.panel{width:600px;background:var(--blue);border:1.25px solid #fff;border-radius:16px;padding:26px 32px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.45)}
+.panel h2{color:var(--yellow);font-size:28px;font-weight:800;margin-bottom:6px}
+.panel p{color:var(--soft);font-size:14px;margin-bottom:16px}
+.seg{display:inline-flex;gap:8px;margin-bottom:16px}
+.seg button{width:54px;height:40px;border-radius:8px;border:1.25px solid #fff;background:var(--card);color:var(--yellow);font:inherit;font-size:20px;font-weight:700;cursor:pointer}
+.seg button.on{background:var(--yellow);color:var(--bg)}
+.names{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}
+.names input,.scoreEdit input{height:40px;border-radius:8px;border:1.25px solid #fff;background:var(--card);color:#fff;font:inherit;font-size:16px;font-weight:600;padding:0 12px;width:100%}
+.names input:focus,.scoreEdit input:focus,.wagerRow input:focus{outline:2px solid var(--yellow);outline-offset:1px}
+.pbtn{height:46px;padding:0 26px;border-radius:9px;border:1.25px solid #fff;font:inherit;font-size:19px;font-weight:700;cursor:pointer;color:#fff;background:var(--green)}
+.pbtn.y{background:var(--yellow);color:var(--bg)}
+.pbtn.ghost{background:transparent;font-size:14px;height:36px;border-color:rgba(255,255,255,.5);color:var(--soft)}
+.prow{display:flex;gap:10px;justify-content:center;align-items:center}
+.scoreEdit{display:grid;grid-template-columns:1fr 50px 110px 50px;gap:8px;align-items:center;margin-bottom:10px}
+.scoreEdit .v{color:var(--yellow);font-size:20px;font-weight:800}
+.scoreEdit button{height:40px;border-radius:8px;border:1.25px solid #fff;background:var(--card);color:#fff;font:inherit;font-weight:700;font-size:15px;cursor:pointer}
+.keys{font-size:12px;color:var(--muted);line-height:1.7;margin-top:12px;text-align:left;columns:2}
+.keys b{color:var(--yellow);display:inline-block;min-width:54px}
+
+/* presenter toolbar (outside slide) */
+#tools{position:fixed;right:10px;bottom:10px;display:flex;gap:6px;opacity:.12;transition:opacity .25s;z-index:50}
+#tools:hover,#tools:focus-within{opacity:1}
+#tools button{width:38px;height:38px;border-radius:9px;border:1px solid rgba(255,255,255,.5);background:rgba(24,83,181,.85);color:#fff;font-size:17px;cursor:pointer;font-family:inherit}
+#tools button:hover{background:var(--blue)}
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);background:rgba(8,20,65,.95);border:1px solid rgba(255,255,255,.4);padding:8px 16px;border-radius:20px;font-size:14px;opacity:0;transition:all .25s;z-index:60;pointer-events:none}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div id="viewport"><div id="stage">
+
+  <!-- 1. TITLE -->
+  <section class="screen" id="s-title">
+    <div class="sq float" style="left:40px;top:40px;width:25px;height:25px;background:var(--yellow)"></div>
+    <div class="sq float" style="left:875px;top:58px;width:36px;height:36px;background:var(--green);animation-delay:-1s"></div>
+    <div class="sq float" style="left:850px;top:418px;width:29px;height:29px;background:var(--red);animation-delay:-2s"></div>
+    <div class="sq float" style="left:65px;top:432px;width:32px;height:32px;background:var(--blue);animation-delay:-3s"></div>
+    <div class="b bold" style="left:72px;top:97px;width:814px;height:58px;font-size:30px;color:var(--yellow)">TECH TOOLS</div>
+    <div class="b bold" style="left:50px;top:148px;width:864px;height:108px;font-size:56px">JEOPARDY!</div>
+    <div class="b" style="left:94px;top:270px;width:770px;height:43px;font-size:23px;color:var(--soft)">A classroom game about Technology Tools Terms</div>
+    <div class="b bold rr btn" data-go="howto" style="left:166px;top:360px;width:626px;height:54px;font-size:18px;color:var(--yellow);background:var(--blue);border-radius:9px">THINK FAST • WORK AS A TEAM • EARN POINTS</div>
+    <div class="b btn" data-go="howto" style="left:230px;top:439px;width:497px;height:25px;font-size:15px;color:var(--muted)">Click START GAME to begin</div>
+    <div class="b footer">TECH TOOLS JEOPARDY • TECHNOLOGY TOOLS TERMS</div>
+  </section>
+
+  <!-- 2. HOW TO PLAY -->
+  <section class="screen" id="s-howto">
+    <div class="b bold" style="left:72px;top:32px;width:814px;height:50px;font-size:34px;color:var(--yellow)">HOW TO PLAY</div>
+    <div id="rules"></div>
+    <div class="b bold rr btn" id="startBtn" style="left:335px;top:450px;width:288px;height:47px;font-size:21px;background:var(--green);border-radius:8px">START GAME&nbsp;&nbsp;▶</div>
+    <div class="b footer">TECH TOOLS JEOPARDY • TECHNOLOGY TOOLS TERMS</div>
+  </section>
+
+  <!-- 3. BOARD -->
+  <section class="screen" id="s-board">
+    <div class="b bold" style="left:36px;top:14px;width:886px;height:40px;font-size:29px;color:var(--yellow)">CHOOSE YOUR CHALLENGE</div>
+    <div id="grid"></div>
+    <div class="b" id="scoreRow"></div>
+    <div class="b" style="left:144px;top:481px;width:670px;height:22px;font-size:13px;color:var(--muted)">Click a point value to open its question.</div>
+    <div class="b bold rr btn" data-go="final" style="left:328px;top:500px;width:302px;height:27px;font-size:14px;background:var(--green);border-radius:5px">FINAL JEOPARDY ★</div>
+    <div class="b footer" style="top:528px;height:12px;font-size:8px">TECH TOOLS JEOPARDY • TECHNOLOGY TOOLS TERMS</div>
+  </section>
+
+  <!-- 4. QUESTION -->
+  <section class="screen" id="s-q">
+    <div class="b bold" id="qHead" style="left:43px;top:32px;width:871px;height:40px;font-size:22px;color:var(--yellow);white-space:pre"></div>
+    <div class="b bold rr" id="qText" style="left:76px;top:97px;width:806px;height:104px;font-size:27px;background:var(--card);border-radius:17px;padding:0 24px"></div>
+    <div class="b choices" id="qChoices" style="left:158px;top:227px;width:641px;height:151px"></div>
+    <div class="b" id="timer" title="Click to restart the timer (T)" style="left:144px;top:400px;width:670px;height:32px"></div>
+    <div id="timerBar"><i></i></div>
+    <div class="b bold rr btn" id="revealBtn" style="left:320px;top:443px;width:317px;height:45px;font-size:20px;color:var(--bg);background:var(--yellow);border-radius:8px">REVEAL ANSWER&nbsp;&nbsp;➜</div>
+    <div class="b bold rr btn" data-go="board" style="left:32px;top:450px;width:187px;height:35px;font-size:13px;background:var(--blue);border-radius:6px">BACK TO BOARD</div>
+    <div class="b footer">TECH TOOLS JEOPARDY • TECHNOLOGY TOOLS TERMS</div>
+  </section>
+
+  <!-- 5. ANSWER -->
+  <section class="screen" id="s-a">
+    <div class="b bold" style="left:72px;top:40px;width:814px;height:43px;font-size:28px;color:var(--yellow)">ANSWER REVEALED</div>
+    <div class="b bold rr" id="aText" style="left:83px;top:126px;width:792px;height:104px;font-size:34px;background:var(--green);border-radius:17px"></div>
+    <div class="b" id="aFor" style="left:108px;top:263px;width:742px;height:65px;font-size:19px;color:var(--soft)"></div>
+    <div class="b bold" id="aEarn" style="left:108px;top:335px;width:742px;height:40px;font-size:21px;color:var(--yellow)"></div>
+    <div class="b award" id="awardRow" style="left:40px;top:386px;width:880px;height:36px"></div>
+    <div class="b bold rr btn" id="returnBtn" style="left:320px;top:436px;width:320px;height:45px;font-size:18px;background:var(--blue);border-radius:8px">RETURN TO BOARD&nbsp;&nbsp;↩</div>
+    <div class="b footer">TECH TOOLS JEOPARDY • TECHNOLOGY TOOLS TERMS</div>
+  </section>
+
+  <!-- 6. FINAL JEOPARDY -->
+  <section class="screen" id="s-final">
+    <div class="b bold" style="left:58px;top:32px;width:850px;height:50px;font-size:36px;color:var(--yellow)">FINAL JEOPARDY</div>
+    <div class="b bold rr" style="left:79px;top:104px;width:799px;height:54px;font-size:19px;color:var(--yellow);background:var(--blue);border-radius:9px">CATEGORY: DIGITAL PRODUCTIVITY</div>
+    <div class="b bold" style="left:94px;top:191px;width:770px;height:97px;font-size:26px">This tool helps people create, store, share, and edit documents online with others in real time.</div>
+    <div class="b" style="left:108px;top:313px;width:742px;height:40px;font-size:18px;color:var(--soft)">Teams may wager any amount up to their current score.</div>
+    <div class="b bold rr btn" data-go="finalA" style="left:328px;top:385px;width:302px;height:50px;font-size:20px;color:var(--bg);background:var(--yellow);border-radius:8px">REVEAL ANSWER</div>
+    <div class="b bold rr btn" data-go="board" style="left:32px;top:450px;width:187px;height:35px;font-size:13px;background:var(--blue);border-radius:6px">BACK TO BOARD</div>
+    <div class="b footer">TECH TOOLS JEOPARDY • TECHNOLOGY TOOLS TERMS</div>
+  </section>
+
+  <!-- 7. FINAL ANSWER -->
+  <section class="screen" id="s-finalA">
+    <div class="b bold" style="left:58px;top:43px;width:850px;height:47px;font-size:29px;color:var(--yellow)">FINAL JEOPARDY • ANSWER</div>
+    <div class="b bold rr" style="left:76px;top:130px;width:806px;height:108px;font-size:25px;background:var(--green);border-radius:17px;padding:0 20px">Google Docs (or a similar cloud-based collaborative document tool)</div>
+    <div class="b" style="left:101px;top:277px;width:756px;height:40px;font-size:18px;color:var(--soft)">Accept equivalent answers if the explanation is correct.</div>
+    <div class="b" id="wagers" style="left:100px;top:322px;width:760px;height:150px;flex-direction:column;gap:2px"></div>
+    <div class="b bold rr btn" id="winnerBtn" style="left:338px;top:474px;width:284px;height:34px;font-size:15px;color:var(--bg);background:var(--yellow);border-radius:6px">SEE THE WINNER&nbsp;&nbsp;★</div>
+    <div class="b footer" style="top:520px">TECH TOOLS JEOPARDY • TECHNOLOGY TOOLS TERMS</div>
+  </section>
+
+  <!-- 8. WINNER -->
+  <section class="screen" id="s-win">
+    <div class="sq float" style="left:40px;top:40px;width:25px;height:25px;background:var(--yellow)"></div>
+    <div class="sq float" style="left:875px;top:58px;width:36px;height:36px;background:var(--green);animation-delay:-1s"></div>
+    <div class="sq float" style="left:850px;top:418px;width:29px;height:29px;background:var(--red);animation-delay:-2s"></div>
+    <div class="sq float" style="left:65px;top:432px;width:32px;height:32px;background:var(--blue);animation-delay:-3s"></div>
+    <div class="b bold" style="left:72px;top:40px;width:814px;height:43px;font-size:28px;color:var(--yellow)">AND THE WINNER IS…</div>
+    <div class="b bold rr" id="winName" style="left:83px;top:100px;width:792px;height:104px;font-size:40px;background:var(--green);border-radius:17px"></div>
+    <div class="b" id="finalScores" style="left:180px;top:226px;width:600px;height:190px;flex-direction:column;gap:8px"></div>
+    <div class="b bold rr btn" id="againBtn" style="left:320px;top:436px;width:320px;height:45px;font-size:18px;background:var(--blue);border-radius:8px">PLAY AGAIN&nbsp;&nbsp;↻</div>
+    <div class="b footer">TECH TOOLS JEOPARDY • TECHNOLOGY TOOLS TERMS</div>
+    <div id="confetti"></div>
+  </section>
+
+  <!-- TEAM SETUP MODAL -->
+  <div class="modal" id="setup">
+    <div class="panel">
+      <h2>SET UP TEAMS</h2>
+      <p>How many teams are playing today?</p>
+      <div class="seg" id="teamCount"></div>
+      <div class="names" id="teamNames"></div>
+      <div class="prow">
+        <button class="pbtn ghost" id="cancelSetup">Cancel</button>
+        <button class="pbtn" id="letsPlay">LET'S PLAY&nbsp;&nbsp;▶</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCORES MODAL -->
+  <div class="modal" id="scores">
+    <div class="panel" style="width:640px">
+      <h2>SCOREBOARD</h2>
+      <p>Fix any score by hand. Changes save instantly.</p>
+      <div id="scoreEdit"></div>
+      <div class="keys">
+        <div><b>Space</b> Reveal / continue</div>
+        <div><b>B / Esc</b> Back to board</div>
+        <div><b>1 – 4</b> Award team (answer slide)</div>
+        <div><b>T</b> Restart timer</div>
+        <div><b>A – D</b> Highlight a choice</div>
+        <div><b>F</b> Fullscreen</div>
+        <div><b>S</b> Scoreboard</div>
+        <div><b>M</b> Sound on / off</div>
+      </div>
+      <div class="prow" style="margin-top:16px">
+        <button class="pbtn ghost" id="resetBtn">New game</button>
+        <button class="pbtn y" id="closeScores">DONE</button>
+      </div>
+    </div>
+  </div>
+
+</div></div>
+
+<div id="tools">
+  <button id="tScores" title="Scoreboard & shortcuts (S)">☰</button>
+  <button id="tSound" title="Sound (M)">♪</button>
+  <button id="tFull" title="Fullscreen (F)">⛶</button>
+</div>
+<div id="toast"></div>
+
+<script>
+/* ===================== GAME DATA (from the deck) ===================== */
+const CATS = [
+  {name:"COMPUTER<br>HARDWARE", label:"COMPUTER HARDWARE", color:"var(--c1)", qs:[
+    {q:"What device is used to type letters and numbers?", c:["Monitor","Keyboard","Speaker","Printer"], a:1},
+    {q:"What device displays text, images, and videos from a computer?", c:["Monitor","Mouse","Microphone","Router"], a:0},
+    {q:"What pointing device moves the cursor on a computer screen?", c:["Scanner","Webcam","Mouse","Projector"], a:2},
+    {q:"What is the main circuit board that connects the computer’s components?", c:["Hard drive","Motherboard","Keyboard","Operating system"], a:1}]},
+  {name:"SOFTWARE", label:"SOFTWARE", color:"var(--c2)", qs:[
+    {q:"What do we call the programs and instructions that run on a computer?", c:["Hardware","Software","Monitor","Network cable"], a:1},
+    {q:"What type of application is used to create and edit text documents?", c:["Word processor","Web browser","Media player","Antivirus"], a:0},
+    {q:"What software manages computer hardware and allows applications to run?", c:["Search engine","Spreadsheet","Operating system","Presentation"], a:2},
+    {q:"Which type of software organizes data in cells and can perform calculations?", c:["Drawing software","Spreadsheet software","Web browser","Email"], a:1}]},
+  {name:"INTERNET<br>TOOLS", label:"INTERNET TOOLS", color:"var(--c3)", qs:[
+    {q:"Which application lets you open and view websites?", c:["Web browser","Calculator","File manager","Camera"], a:0},
+    {q:"What online tool helps you find information across the web?", c:["Word processor","Search engine","Keyboard","Speaker"], a:1},
+    {q:"What service lets you send and receive electronic messages?", c:["Bluetooth","Email","Spreadsheet","Projector"], a:1},
+    {q:"What wireless technology connects devices to a local network and internet?", c:["HDMI","USB","Wi-Fi","RAM"], a:2}]},
+  {name:"PRODUCTIVITY<br>TOOLS", label:"PRODUCTIVITY TOOLS", color:"var(--c4)", qs:[
+    {q:"Which application is commonly used to create slide presentations?", c:["Microsoft PowerPoint","Paint","Notepad","File Explorer"], a:0},
+    {q:"Which application is commonly used to organize data in rows and columns?", c:["Microsoft Word","Microsoft Excel","Google Chrome","VLC"], a:1},
+    {q:"Which online tool allows multiple people to edit the same document together?", c:["Calculator","Google Docs","Paint","BIOS"], a:1},
+    {q:"What type of tool helps teams plan tasks, deadlines, and project progress?", c:["Music player","Project management software","Web camera","Printer driver"], a:1}]}
+];
+const RULES = [
+  "Divide the class into 2–4 teams.",
+  "Choose a category and point value from the game board.",
+  "Read the clue and discuss your answer for 10 seconds.",
+  "Correct answer = earn the points. Incorrect answer = 0 points.",
+  "Other teams may steal after an incorrect answer.",
+  "Use the answer slide to check the correct response, then return to the board.",
+  "Keep scores on the board or on paper. Highest score wins!"
+];
+const TIMER_SECS = 10;
+const STORE = "techToolsJeopardy.v1";
+
+/* ===================== STATE ===================== */
+let S = {teams:[], used:{}, awards:{}, wagers:{}, screen:"title", cur:null};
+let sound = true, timerId = null, timeLeft = TIMER_SECS, setupCount = 2;
+const $ = id => document.getElementById(id);
+function save(){ try{ localStorage.setItem(STORE, JSON.stringify(S)); }catch(e){} }
+function load(){ try{ const d = JSON.parse(localStorage.getItem(STORE)); if(d && d.teams) S = Object.assign(S, d); }catch(e){} }
+const key = (c,i) => c + "-" + i;
+const pts = i => (i+1)*100;
+const esc = s => String(s).replace(/[&<>"]/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+
+/* score = sum of board awards + final wager result */
+function score(t){
+  let s = 0;
+  for(const k in S.awards){ if(S.awards[k] === t){ const i = +k.split("-")[1]; s += pts(i); } }
+  s += (S.teams[t].adj || 0);
+  const w = S.wagers[t];
+  if(w && w.res === "ok") s += w.amt; else if(w && w.res === "no") s -= w.amt;
+  return s;
+}
+function boardScore(t){ const w = S.wagers[t]; let s = score(t); if(w && w.res==="ok") s -= w.amt; else if(w && w.res==="no") s += w.amt; return s; }
+
+/* ===================== SOUND (WebAudio, no files) ===================== */
+let AC = null;
+function tone(freq, dur, type="sine", vol=.18, delay=0){
+  if(!sound) return;
+  try{
+    AC = AC || new (window.AudioContext||window.webkitAudioContext)();
+    const t0 = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t0);
+    g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(vol, t0+.01); g.gain.exponentialRampToValueAtTime(.0001, t0+dur);
+    o.connect(g).connect(AC.destination); o.start(t0); o.stop(t0+dur+.02);
+  }catch(e){}
+}
+const sfx = {
+  open(){ tone(523,.12,"triangle"); tone(784,.18,"triangle",.18,.1); },
+  reveal(){ [523,659,784,1047].forEach((f,i)=>tone(f,.22,"triangle",.16,i*.09)); },
+  tick(){ tone(880,.06,"square",.06); },
+  buzz(){ tone(150,.6,"sawtooth",.14); tone(110,.6,"sawtooth",.1); },
+  award(){ tone(988,.1,"square",.08); tone(1319,.25,"square",.08,.08); },
+  click(){ tone(660,.05,"triangle",.08); },
+  win(){ [523,659,784,1047,784,1047].forEach((f,i)=>tone(f,.3,"triangle",.17,i*.13)); }
+};
+
+/* ===================== NAVIGATION ===================== */
+function go(name){
+  if(name === "final" || name === "finalA" ) { if(name==="final") sfx.open(); }
+  stopTimer();
+  document.querySelectorAll(".screen").forEach(s => s.classList.toggle("on", s.id === "s-"+name));
+  S.screen = name;
+  if(name === "board") renderBoard();
+  if(name === "finalA") renderWagers();
+  if(name === "win") renderWinner();
+  save();
+}
+function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.add("on"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("on"),1600); }
+
+/* ===================== BUILD STATIC PARTS ===================== */
+function buildRules(){
+  $("rules").innerHTML = RULES.map((r,i)=>{
+    const y = 97 + i*49;
+    return `<div class="b num rr" style="left:61px;top:${y}px;width:40px;height:35px">${i+1}</div>
+            <div class="b rule" style="left:119px;top:${y-1}px;width:763px;height:37px">${r}</div>`;
+  }).join("");
+}
+function buildGrid(){
+  const xs = [35,260,485,711], ys = [145,223,301,379];
+  let h = "";
+  CATS.forEach((c,ci)=>{
+    h += `<div class="b cat rr" style="left:${xs[ci]}px;top:72px;width:216px;height:65px;background:${c.color}">${c.name}</div>`;
+    c.qs.forEach((q,qi)=>{
+      h += `<div class="b tile rr btn" data-c="${ci}" data-i="${qi}" style="left:${xs[ci]}px;top:${ys[qi]}px;width:216px;height:66px">${pts(qi)}</div>`;
+    });
+  });
+  $("grid").innerHTML = h;
+  $("grid").querySelectorAll(".tile").forEach(el => el.addEventListener("click", () => {
+    if(el.classList.contains("used")) return;
+    openQ(+el.dataset.c, +el.dataset.i);
+  }));
+}
+
+/* ===================== BOARD ===================== */
+function renderBoard(){
+  $("grid").querySelectorAll(".tile").forEach(el => {
+    const u = S.used[key(el.dataset.c, el.dataset.i)];
+    el.classList.toggle("used", !!u);
+  });
+  const row = $("scoreRow");
+  if(!S.teams.length){ row.innerHTML = ""; return; }
+  const sc = S.teams.map((_,t)=>score(t)), max = Math.max(...sc);
+  row.innerHTML = S.teams.map((tm,t)=>`<div class="chip ${sc[t]===max && max>0 ? "lead":""}">${esc(tm.name)} <span class="pts">${sc[t]}</span></div>`).join("");
+}
+
+/* ===================== QUESTION ===================== */
+function openQ(c,i){
+  S.cur = {c,i};
+  const cat = CATS[c], q = cat.qs[i];
+  $("qHead").textContent = `${cat.label}  •  ${pts(i)} POINTS`;
+  $("qText").textContent = q.q;
+  $("qChoices").innerHTML = q.c.map((t,k)=>`<div class="choice" data-k="${k}">${"ABCD"[k]}. ${esc(t)}</div>`).join("");
+  $("qChoices").querySelectorAll(".choice").forEach(el => el.addEventListener("click", () => pick(+el.dataset.k)));
+  go("q"); sfx.open(); startTimer();
+}
+function pick(k){
+  const els = $("qChoices").querySelectorAll(".choice");
+  els.forEach((e,j)=> e.classList.toggle("pick", j===k && !e.classList.contains("pick")));
+  sfx.click();
+}
+function startTimer(){
+  stopTimer(); timeLeft = TIMER_SECS; paintTimer();
+  const bar = $("timerBar").firstElementChild;
+  bar.style.transition = "none"; bar.style.transform = "scaleX(1)";
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{ bar.style.transition = "transform 1s linear"; }));
+  timerId = setInterval(()=>{
+    timeLeft--; paintTimer();
+    bar.style.transform = `scaleX(${Math.max(0,timeLeft)/TIMER_SECS})`;
+    if(timeLeft <= 3 && timeLeft > 0) sfx.tick();
+    if(timeLeft <= 0){ stopTimer(); sfx.buzz(); }
+  },1000);
+}
+function stopTimer(){ if(timerId){ clearInterval(timerId); timerId = null; } }
+function paintTimer(){
+  const t = $("timer");
+  t.classList.toggle("warn", timeLeft<=3 && timeLeft>0);
+  t.classList.toggle("up", timeLeft<=0);
+  t.textContent = timeLeft > 0
+    ? `Discuss with your team • ${timeLeft} second${timeLeft===1?"":"s"}`
+    : "TIME’S UP! • Give your answer";
+}
+
+/* ===================== ANSWER ===================== */
+function reveal(){
+  const {c,i} = S.cur, q = CATS[c].qs[i];
+  $("aText").textContent = q.c[q.a];
+  $("aFor").textContent = "Correct response for: " + q.q;
+  $("aEarn").textContent = `Team earns ${pts(i)} points if correct!`;
+  S.used[key(c,i)] = true;
+  renderAward();
+  go("a"); sfx.reveal();
+}
+function renderAward(){
+  const row = $("awardRow");
+  if(!S.teams.length){ row.innerHTML = ""; return; }
+  const k = key(S.cur.c, S.cur.i), who = S.awards[k];
+  row.innerHTML = `<span class="awardLbl">AWARD POINTS TO:</span>` +
+    S.teams.map((tm,t)=>`<button class="awardBtn ${who===t?"on":""}" data-t="${t}">${who===t?"✓ ":""}${esc(tm.name)}</button>`).join("") +
+    `<button class="awardBtn ${who===undefined?"on":""}" data-t="-1" style="${who===undefined?"background:rgba(204,60,70,.75)":""}">Nobody</button>`;
+  row.querySelectorAll(".awardBtn").forEach(b => b.addEventListener("click", () => award(+b.dataset.t)));
+}
+function award(t){
+  const k = key(S.cur.c, S.cur.i);
+  if(t < 0 || S.awards[k] === t) delete S.awards[k];
+  else { S.awards[k] = t; sfx.award(); toast(`+${pts(S.cur.i)} to ${S.teams[t].name}`); }
+  renderAward(); save();
+}
+
+/* ===================== FINAL JEOPARDY ===================== */
+function renderWagers(){
+  const box = $("wagers");
+  if(!S.teams.length){ box.innerHTML = ""; $("winnerBtn").style.display="none"; return; }
+  $("winnerBtn").style.display="";
+  box.innerHTML = `<div class="wagerRow" style="height:20px;font-size:11px;color:var(--muted);font-weight:700"><span style="text-align:left">TEAM</span><span>WAGER</span><span>RIGHT</span><span>WRONG</span><span style="text-align:right">TOTAL</span></div>` +
+   S.teams.map((tm,t)=>{
+    const w = S.wagers[t] || {amt:0,res:null};
+    return `<div class="wagerRow" data-t="${t}">
+      <span class="nm">${esc(tm.name)} <span style="color:var(--muted);font-weight:400;font-size:12px">(${boardScore(t)})</span></span>
+      <input type="number" min="0" step="50" value="${w.amt||""}" placeholder="0">
+      <button class="mini ok ${w.res==="ok"?"on":""}">✓</button>
+      <button class="mini no ${w.res==="no"?"on":""}">✗</button>
+      <span class="res">${score(t)}</span></div>`;
+  }).join("");
+  box.querySelectorAll(".wagerRow[data-t]").forEach(r=>{
+    const t = +r.dataset.t, inp = r.querySelector("input");
+    const get = () => S.wagers[t] || (S.wagers[t] = {amt:0,res:null});
+    inp.addEventListener("input", ()=>{
+      const cap = Math.max(0, boardScore(t));
+      let v = Math.max(0, Math.floor(+inp.value || 0));
+      if(v > cap){ v = cap; inp.value = cap; toast(`Max wager for ${S.teams[t].name} is ${cap}`); }
+      get().amt = v; r.querySelector(".res").textContent = score(t); save();
+    });
+    inp.addEventListener("keydown", e => e.stopPropagation());
+    r.querySelector(".ok").addEventListener("click", ()=>{ const w=get(); w.res = w.res==="ok"?null:"ok"; if(w.res) sfx.award(); renderWagers(); save(); });
+    r.querySelector(".no").addEventListener("click", ()=>{ const w=get(); w.res = w.res==="no"?null:"no"; if(w.res) sfx.buzz(); renderWagers(); save(); });
+  });
+}
+function renderWinner(){
+  const sc = S.teams.map((tm,t)=>({n:tm.name, s:score(t)})).sort((a,b)=>b.s-a.s);
+  const top = sc.filter(x=>x.s===sc[0].s);
+  const label = top.length>1 ? "IT’S A TIE! " + top.map(x=>x.n).join(" & ") : sc[0].n + "!";
+  $("winName").textContent = label;
+  $("winName").style.fontSize = (label.length > 40 ? 24 : label.length > 24 ? 30 : 40) + "px";
+  $("finalScores").innerHTML = sc.map((x,i)=>`<div style="display:flex;justify-content:space-between;width:420px;font-size:${i===0?24:20}px;font-weight:${i===0?800:600};color:${i===0?"var(--yellow)":"var(--soft)"}"><span>${i+1}. ${esc(x.n)}</span><span>${x.s} pts</span></div>`).join("");
+  sfx.win(); confetti();
+}
+function confetti(){
+  const box = $("confetti"); box.innerHTML = "";
+  const cols = ["#FFCC33","#209969","#CC3C46","#1853B5","#FFFFFF"];
+  for(let i=0;i<90;i++){
+    const d = document.createElement("i"); d.className="conf";
+    d.style.left = Math.random()*960+"px"; d.style.background = cols[i%cols.length];
+    d.style.animationDuration = (2.2+Math.random()*2.2)+"s"; d.style.animationDelay = (Math.random()*1.2)+"s";
+    box.appendChild(d);
+  }
+}
+
+/* ===================== TEAM SETUP ===================== */
+function openSetup(){
+  setupCount = Math.min(4, Math.max(2, S.teams.length || 2));
+  renderSetup(); $("setup").classList.add("on");
+}
+function renderSetup(){
+  $("teamCount").innerHTML = [2,3,4].map(n=>`<button class="${n===setupCount?"on":""}" data-n="${n}">${n}</button>`).join("");
+  $("teamCount").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{ keepNames(); setupCount=+b.dataset.n; renderSetup(); }));
+  const prev = renderSetup.names || S.teams.map(t=>t.name);
+  $("teamNames").innerHTML = Array.from({length:setupCount},(_,i)=>`<input maxlength="18" value="${esc(prev[i]||"")}" placeholder="Team ${i+1}">`).join("");
+  $("teamNames").querySelectorAll("input").forEach(inp=>inp.addEventListener("keydown",e=>{ e.stopPropagation(); if(e.key==="Enter") $("letsPlay").click(); }));
+}
+function keepNames(){ renderSetup.names = [...$("teamNames").querySelectorAll("input")].map(i=>i.value.trim()); }
+$("letsPlay").addEventListener("click", ()=>{
+  keepNames();
+  S.teams = renderSetup.names.slice(0,setupCount).map((n,i)=>({name: n || `Team ${i+1}`, adj:0}));
+  S.used = {}; S.awards = {}; S.wagers = {};
+  renderSetup.names = null;
+  $("setup").classList.remove("on"); go("board"); sfx.reveal();
+});
+$("cancelSetup").addEventListener("click", ()=> $("setup").classList.remove("on"));
+
+/* ===================== SCOREBOARD EDIT ===================== */
+function openScores(){
+  renderScoreEdit(); $("scores").classList.add("on");
+}
+function renderScoreEdit(){
+  const box = $("scoreEdit");
+  if(!S.teams.length){ box.innerHTML = `<p>No teams yet — press START GAME to set them up.</p>`; return; }
+  box.innerHTML = S.teams.map((tm,t)=>`<div class="scoreEdit" data-t="${t}">
+     <input maxlength="18" value="${esc(tm.name)}"><button data-d="-100">−100</button>
+     <span class="v">${score(t)}</span><button data-d="100">+100</button></div>`).join("");
+  box.querySelectorAll(".scoreEdit").forEach(r=>{
+    const t = +r.dataset.t;
+    r.querySelector("input").addEventListener("input", e=>{ S.teams[t].name = e.target.value || `Team ${t+1}`; save(); });
+    r.querySelector("input").addEventListener("keydown", e=>e.stopPropagation());
+    r.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{ S.teams[t].adj = (S.teams[t].adj||0) + (+b.dataset.d); sfx.click(); renderScoreEdit(); save(); }));
+  });
+}
+function closeScores(){
+  $("scores").classList.remove("on");
+  if(S.screen==="board") renderBoard();
+  if(S.screen==="a") renderAward();
+  if(S.screen==="finalA") renderWagers();
+}
+$("closeScores").addEventListener("click", closeScores);
+$("resetBtn").addEventListener("click", ()=>{ $("scores").classList.remove("on"); S.used={}; S.awards={}; S.wagers={}; S.teams.forEach(t=>t.adj=0); save(); go("title"); toast("New game ready"); });
+
+/* ===================== WIRING ===================== */
+document.querySelectorAll("[data-go]").forEach(el => el.addEventListener("click", () => go(el.dataset.go)));
+$("s-title").addEventListener("click", e => { if(!e.target.closest(".btn")) go("howto"); });
+$("startBtn").addEventListener("click", openSetup);
+$("revealBtn").addEventListener("click", reveal);
+$("returnBtn").addEventListener("click", ()=>go("board"));
+$("timer").addEventListener("click", startTimer);
+$("winnerBtn").addEventListener("click", ()=>go("win"));
+$("againBtn").addEventListener("click", ()=>{ S.used={}; S.awards={}; S.wagers={}; S.teams.forEach(t=>t.adj=0); save(); openSetup(); });
+$("tScores").addEventListener("click", openScores);
+$("tSound").addEventListener("click", toggleSound);
+$("tFull").addEventListener("click", toggleFull);
+
+function toggleSound(){ sound = !sound; $("tSound").style.opacity = sound?1:.45; toast(sound?"Sound on":"Sound off"); }
+function toggleFull(){
+  try{ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }catch(e){}
+}
+
+document.addEventListener("keydown", e=>{
+  if(e.target.tagName === "INPUT") return;
+  const k = e.key.toLowerCase(), scr = S.screen;
+  if($("setup").classList.contains("on")){ if(k==="escape") $("setup").classList.remove("on"); return; }
+  if($("scores").classList.contains("on")){ if(k==="escape"||k==="s") closeScores(); return; }
+  if(k==="f"){ toggleFull(); return; }
+  if(k==="m"){ toggleSound(); return; }
+  if(k==="s"){ openScores(); return; }
+  if(k===" "||k==="enter"||k==="arrowright"){
+    e.preventDefault();
+    if(scr==="title") go("howto");
+    else if(scr==="howto") openSetup();
+    else if(scr==="q") reveal();
+    else if(scr==="a") go("board");
+    else if(scr==="final") go("finalA");
+    else if(scr==="finalA" && S.teams.length) go("win");
+    return;
+  }
+  if(k==="escape"||k==="b"){ if(["q","a","final","finalA"].includes(scr)) go("board"); return; }
+  if(k==="arrowleft"){ if(scr==="howto") go("title"); else if(scr==="board") go("howto"); return; }
+  if(scr==="q" && k==="t") startTimer();
+  if(scr==="q" && "abcd".includes(k) && k.length===1) pick("abcd".indexOf(k));
+  if(scr==="a" && /^[1-4]$/.test(k) && +k <= S.teams.length) award(+k-1);
+});
+
+/* scale 960x540 stage to fit any screen */
+function fit(){
+  const s = Math.min(innerWidth/960, innerHeight/540);
+  $("stage").style.transform = `scale(${s})`;
+}
+addEventListener("resize", fit);
+
+/* init */
+buildRules(); buildGrid(); load(); fit();
+const resumable = ["board","q","a","final","finalA"].includes(S.screen) && S.teams.length;
+go(resumable ? (S.screen==="q"||S.screen==="a" ? "board" : S.screen) : "title");
+</script>
+</body>
+</html>
